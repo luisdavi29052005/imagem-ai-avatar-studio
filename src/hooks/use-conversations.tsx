@@ -91,9 +91,9 @@ export function useConversations() {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
-        query: {
-          conversation_id: conversationId,
-        },
+        body: {
+          conversation_id: conversationId
+        }
       });
 
       if (error) {
