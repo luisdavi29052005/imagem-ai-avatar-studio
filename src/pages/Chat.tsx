@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Background } from "@/components/Background";
@@ -10,7 +11,9 @@ import { ChatContainer } from "@/components/chat/ChatContainer";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useAuth } from "@/hooks/use-auth";
+import { useConversations } from "@/hooks/use-conversations";
 import { Message } from "@/components/ChatMessage";
+import { toast } from "@/hooks/use-toast";
 
 // Mock image for demo purposes
 const mockGeneratedImage = "https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMjA3fDB8MXxhbGx8fHx8fHx8fHwxNjE4MTYwNzAzfA&ixlib=rb-4.0.3&q=80&w=400";
@@ -33,6 +36,58 @@ export default function Chat() {
   const navigate = useNavigate();
   const isDesktop = useMediaQuery("(min-width: 960px)");
   const { user, isLoggedIn } = useAuth();
+  const { 
+    conversations, 
+    activeConversationId, 
+    setActiveConversationId,
+    fetchConversations, 
+    saveConversation, 
+    loadMessages 
+  } = useConversations();
+
+  // Carregar conversas quando o usuário estiver logado
+  useEffect(() => {
+    if (isLoggedIn) {
+      fetchConversations();
+    }
+  }, [isLoggedIn, fetchConversations]);
+
+  // Ouvir eventos de autenticação para atualizar o estado
+  useEffect(() => {
+    const handleAuthChange = (event: Event) => {
+      // @ts-ignore - CustomEvent tem um campo detail
+      const { isLoggedIn } = (event as CustomEvent).detail;
+      
+      if (isLoggedIn) {
+        toast({
+          title: "Login realizado com sucesso",
+          description: "Bem-vindo(a) de volta!"
+        });
+        fetchConversations();
+      }
+    };
+    
+    window.addEventListener("auth-state-change", handleAuthChange);
+    return () => {
+      window.removeEventListener("auth-state-change", handleAuthChange);
+    };
+  }, [fetchConversations]);
+
+  // Carregar mensagens quando uma conversa é selecionada
+  useEffect(() => {
+    const loadSelectedConversation = async () => {
+      if (activeConversationId) {
+        const loadedMessages = await loadMessages(activeConversationId);
+        if (loadedMessages) {
+          setMessages(loadedMessages);
+        }
+      }
+    };
+    
+    if (activeConversationId) {
+      loadSelectedConversation();
+    }
+  }, [activeConversationId, loadMessages]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -58,6 +113,13 @@ export default function Chat() {
       if (interval) clearInterval(interval);
     };
   }, [cooldownTime]);
+
+  const handleSaveConversation = async () => {
+    if (isLoggedIn && messages.length > 0) {
+      const title = messages[0]?.content?.substring(0, 30) || "Nova conversa";
+      await saveConversation(title, messages);
+    }
+  };
 
   const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setPrompt(e.target.value);
@@ -125,6 +187,11 @@ export default function Chat() {
       setIsProcessing(false);
       setAvatarMood(mentionsGPT ? "excited" : "happy");
       setUploadedImage(null);
+      
+      // Salvar conversa se o usuário estiver logado
+      if (isLoggedIn) {
+        handleSaveConversation();
+      }
     }, 2000);
   };
 
@@ -151,7 +218,6 @@ export default function Chat() {
   };
 
   const handleLogin = () => {
-    // In the next step, this will use the real authentication
     setShowLoginModal(false);
   };
 
@@ -164,6 +230,11 @@ export default function Chat() {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
+  const handleNewChat = () => {
+    setMessages([]);
+    setActiveConversationId(null);
+  };
+
   return (
     <div className="relative min-h-screen bg-darkbg flex flex-col">
       <Background />
@@ -171,13 +242,30 @@ export default function Chat() {
       
       <main className="flex-1 pt-16 pb-0 flex h-[calc(100vh-64px)]">
         {/* Desktop Sidebar */}
-        {isDesktop && <ChatSidebar />}
+        {isDesktop && (
+          <ChatSidebar
+            conversations={conversations}
+            activeConversationId={activeConversationId}
+            onSelectConversation={setActiveConversationId}
+            onNewConversation={handleNewChat}
+          />
+        )}
         
         {/* Mobile Drawer */}
         {!isDesktop && (
           <ConversationDrawer 
             isOpen={isSidebarOpen} 
-            onClose={() => setIsSidebarOpen(false)} 
+            onClose={() => setIsSidebarOpen(false)}
+            conversations={conversations}
+            activeConversationId={activeConversationId}
+            onSelectConversation={(id) => {
+              setActiveConversationId(id);
+              setIsSidebarOpen(false);
+            }}
+            onNewConversation={() => {
+              handleNewChat();
+              setIsSidebarOpen(false);
+            }}
           />
         )}
         
@@ -191,6 +279,7 @@ export default function Chat() {
               isProcessing={isProcessing}
               avatarMood={avatarMood}
               onSuggestionClick={handleSuggestionClick}
+              onSaveConversation={handleSaveConversation}
             />
             
             <ChatInput

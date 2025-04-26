@@ -3,6 +3,10 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -12,13 +16,38 @@ interface LoginModalProps {
 
 export function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const { signIn, signUp, signInWithGoogle } = useAuth();
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      await signInWithGoogle();
+      // A redirect vai ocorrer, então não precisamos chamar onLogin ou onClose
+    } catch (error) {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    try {
+      if (activeTab === "login") {
+        await signIn(email, password);
+      } else {
+        await signUp(email, password);
+      }
+      
       setIsLoading(false);
       onLogin();
-    }, 1500);
+      onClose();
+    } catch (error) {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -47,15 +76,114 @@ export function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps) {
             </button>
             
             <div className="p-8">
-              <h2 className="text-2xl font-bold mb-2">Entre para Continuar</h2>
-              <p className="text-muted-foreground mb-6">
-                Para continuar utilizando nosso serviço, por favor faça login.
-              </p>
+              <Tabs defaultValue="login" value={activeTab} onValueChange={(value) => setActiveTab(value as "login" | "signup")}>
+                <TabsList className="grid grid-cols-2 w-full mb-6">
+                  <TabsTrigger value="login">Login</TabsTrigger>
+                  <TabsTrigger value="signup">Cadastro</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="login">
+                  <h2 className="text-2xl font-bold mb-2">Entre para Continuar</h2>
+                  <p className="text-muted-foreground mb-6">
+                    Entre na sua conta para continuar gerando imagens.
+                  </p>
+                  
+                  <form className="space-y-4" onSubmit={handleSubmit}>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input 
+                        id="email" 
+                        type="email" 
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="seu@email.com" 
+                        required 
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Senha</Label>
+                      <Input 
+                        id="password" 
+                        type="password" 
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="********" 
+                        required 
+                      />
+                    </div>
+                    
+                    <Button 
+                      type="submit" 
+                      className="w-full" 
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-2"></div>
+                      ) : null}
+                      Entrar
+                    </Button>
+                  </form>
+                </TabsContent>
+                
+                <TabsContent value="signup">
+                  <h2 className="text-2xl font-bold mb-2">Crie sua conta</h2>
+                  <p className="text-muted-foreground mb-6">
+                    Junte-se a nós para explorar o poder da IA em imagens.
+                  </p>
+                  
+                  <form className="space-y-4" onSubmit={handleSubmit}>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-email">Email</Label>
+                      <Input 
+                        id="signup-email" 
+                        type="email" 
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="seu@email.com" 
+                        required 
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-password">Senha</Label>
+                      <Input 
+                        id="signup-password" 
+                        type="password" 
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="********" 
+                        required 
+                      />
+                    </div>
+                    
+                    <Button 
+                      type="submit" 
+                      className="w-full" 
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-2"></div>
+                      ) : null}
+                      Criar conta
+                    </Button>
+                  </form>
+                </TabsContent>
+              </Tabs>
               
-              <div className="space-y-4">
+              <div className="mt-6">
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-600"></div>
+                  </div>
+                  <div className="relative flex justify-center text-xs">
+                    <span className="px-2 bg-black/30 text-muted-foreground">OU</span>
+                  </div>
+                </div>
+                
                 <Button
                   variant="outline"
-                  className="w-full flex items-center justify-center gap-2"
+                  className="w-full mt-4 flex items-center justify-center gap-2"
                   onClick={handleGoogleLogin}
                   disabled={isLoading}
                 >
@@ -84,7 +212,7 @@ export function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps) {
                   <span>{isLoading ? "Entrando..." : "Continuar com Google"}</span>
                 </Button>
                 
-                <div className="text-center">
+                <div className="text-center mt-4">
                   <p className="text-xs text-muted-foreground">
                     Ao continuar, você concorda com nossos{" "}
                     <a href="#" className="text-primary hover:underline">

@@ -4,38 +4,28 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-// Mock conversation data
-const mockConversations = [
-  {
-    id: 1,
-    title: "Restauração de foto antiga",
-    lastMessage: new Date(),
-    unread: 2
-  },
-  {
-    id: 2,
-    title: "Edição de paisagem",
-    lastMessage: new Date(Date.now() - 1000 * 60 * 60), // 1 hour ago
-    unread: 0
-  },
-  {
-    id: 3,
-    title: "Retratos com estilo artístico",
-    lastMessage: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-    unread: 0
-  },
-  {
-    id: 4,
-    title: "Remoção de fundo",
-    lastMessage: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2), // 2 days ago
-    unread: 0
-  },
-];
+interface Conversation {
+  id: string;
+  title: string;
+  last_message_at: string;
+  unread?: number;
+}
 
-export function ChatSidebar() {
-  const [activeConversation, setActiveConversation] = useState<number | null>(null);
+interface ChatSidebarProps {
+  conversations?: Conversation[];
+  activeConversationId?: string | null;
+  onSelectConversation?: (id: string) => void;
+  onNewConversation?: () => void;
+}
 
-  const formatDate = (date: Date) => {
+export function ChatSidebar({ 
+  conversations = [],
+  activeConversationId,
+  onSelectConversation,
+  onNewConversation
+}: ChatSidebarProps) {
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     
@@ -60,6 +50,7 @@ export function ChatSidebar() {
         <Button 
           className="w-full mb-6 gap-2 bg-white/10 hover:bg-white/15 border border-white/10"
           variant="ghost"
+          onClick={onNewConversation}
         >
           <Plus className="w-4 h-4" />
           <span>Nova conversa</span>
@@ -69,33 +60,39 @@ export function ChatSidebar() {
         <div className="flex-1 overflow-y-auto -mx-3 px-3">
           <h3 className="text-xs font-medium text-muted-foreground mb-2 px-3">Conversas recentes</h3>
           <ul className="space-y-1">
-            {mockConversations.map((conversation) => (
-              <li key={conversation.id}>
-                <button
-                  className={cn(
-                    "w-full px-3 py-2 text-left rounded-md flex flex-col items-start transition-all duration-200",
-                    "focus:outline-none focus:ring-2 focus:ring-primary/60 focus-visible:ring-2",
-                    "hover:bg-white/6 hover:translate-y-[-1px]",
-                    activeConversation === conversation.id ? "bg-white/8" : ""
-                  )}
-                  onClick={() => setActiveConversation(conversation.id)}
-                  role="button"
-                  tabIndex={0}
-                >
-                  <div className="flex justify-between items-center w-full">
-                    <span className="font-medium truncate">{conversation.title}</span>
-                    {conversation.unread > 0 && (
-                      <span className="bg-primary text-xs rounded-full h-5 min-w-5 flex items-center justify-center">
-                        {conversation.unread}
-                      </span>
+            {conversations.length > 0 ? (
+              conversations.map((conversation) => (
+                <li key={conversation.id}>
+                  <button
+                    className={cn(
+                      "w-full px-3 py-2 text-left rounded-md flex flex-col items-start transition-all duration-200",
+                      "focus:outline-none focus:ring-2 focus:ring-primary/60 focus-visible:ring-2",
+                      "hover:bg-white/6 hover:translate-y-[-1px]",
+                      activeConversationId === conversation.id ? "bg-white/8" : ""
                     )}
-                  </div>
-                  <span className="text-xs text-muted-foreground mt-1">
-                    {formatDate(conversation.lastMessage)}
-                  </span>
-                </button>
+                    onClick={() => onSelectConversation?.(conversation.id)}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="flex justify-between items-center w-full">
+                      <span className="font-medium truncate">{conversation.title}</span>
+                      {conversation.unread ? (
+                        <span className="bg-primary text-xs rounded-full h-5 min-w-5 flex items-center justify-center">
+                          {conversation.unread}
+                        </span>
+                      ) : null}
+                    </div>
+                    <span className="text-xs text-muted-foreground mt-1">
+                      {formatDate(conversation.last_message_at)}
+                    </span>
+                  </button>
+                </li>
+              ))
+            ) : (
+              <li className="text-center py-6 text-sm text-muted-foreground">
+                Nenhuma conversa encontrada
               </li>
-            ))}
+            )}
           </ul>
         </div>
         
