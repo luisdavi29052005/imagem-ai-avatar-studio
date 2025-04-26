@@ -1,7 +1,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Image as ImageIcon, Loader, Sparkles, Info, Clock } from "lucide-react";
+import { Send, Image as ImageIcon, Loader, Info, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar } from "@/components/Avatar";
@@ -13,6 +13,10 @@ import { ChatMessage, Message } from "@/components/ChatMessage";
 import { LoginModal } from "@/components/LoginModal";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { useNavigate } from "react-router-dom";
+import { ChatSidebar } from "@/components/ChatSidebar";
+import { ConversationDrawer } from "@/components/ConversationDrawer";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { useAuth } from "@/hooks/use-auth";
 
 // Mock image for demo purposes
 const mockGeneratedImage = "https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMjA3fDB8MXxhbGx8fHx8fHx8fHwxNjE4MTYwNzAzfA&ixlib=rb-4.0.3&q=80&w=400";
@@ -26,18 +30,27 @@ export default function Chat() {
   const [avatarMood, setAvatarMood] = useState<"happy" | "thinking" | "excited" | "confused">("happy");
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [imageGenerationCount, setImageGenerationCount] = useState(0);
   const [cooldownTime, setCooldownTime] = useState(0);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const isDesktop = useMediaQuery("(min-width: 960px)");
+  const { user, isLoggedIn } = useAuth();
 
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Close sidebar drawer when switching to desktop
+  useEffect(() => {
+    if (isDesktop) {
+      setIsSidebarOpen(false);
+    }
+  }, [isDesktop]);
 
   // Handle cooldown timer
   useEffect(() => {
@@ -144,6 +157,7 @@ export default function Chat() {
   };
 
   const handleLogin = () => {
+    // In the next step, this will use the real authentication
     setIsLoggedIn(true);
     setShowLoginModal(false);
   };
@@ -153,59 +167,32 @@ export default function Chat() {
     navigate('/pricing');
   };
 
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
   return (
     <div className="relative min-h-screen bg-darkbg flex flex-col">
       <Background />
-      <Header />
+      <Header onMenuClick={toggleSidebar} />
       
-      <main className="flex-1 pt-16 pb-0 flex flex-col items-center overflow-hidden">
-        <div className="container max-w-5xl mx-auto flex flex-col md:flex-row h-full relative">
-          {/* Avatar sidebar (desktop) */}
-          <div className="hidden md:block md:w-1/4 lg:w-1/5 p-4">
-            <div className="sticky top-20 flex flex-col items-center">
-              <motion.div 
-                className="mb-4"
-                animate={{ y: [0, -10, 0] }}
-                transition={{ repeat: Infinity, duration: 5, ease: "easeInOut" }}
-              >
-                <Avatar mood={avatarMood} size="lg" />
-              </motion.div>
-              
-              {cooldownTime > 0 && (
-                <div className="mt-4 glass px-4 py-2 rounded-lg flex items-center text-sm">
-                  <Clock className="w-4 h-4 mr-2 text-amber-400" />
-                  <span>Cooldown: {cooldownTime}s</span>
-                </div>
-              )}
-              
-              <div className="mt-4 text-center">
-                <div className="text-sm text-muted-foreground">
-                  ReviverImagem <span className="text-xs">v1.0</span>
-                </div>
-                <div className="flex justify-center mt-2">
-                  {isLoggedIn ? (
-                    <div className="flex items-center gap-1 glass px-2 py-1 rounded-full text-xs">
-                      <Sparkles className="w-3 h-3 text-primary" />
-                      <span>Plano Grátis</span>
-                    </div>
-                  ) : (
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="text-xs"
-                      onClick={() => setShowLoginModal(true)}
-                    >
-                      <Info className="w-3 h-3 mr-1" />
-                      Entrar
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Chat container */}
-          <div className="flex-1 glass max-w-3xl mx-auto my-4 rounded-lg overflow-hidden border border-white/10 flex flex-col h-[calc(100vh-110px)]">
+      <main className="flex-1 pt-16 pb-0 flex h-[calc(100vh-64px)]">
+        {/* Desktop Sidebar */}
+        {isDesktop && <ChatSidebar />}
+        
+        {/* Mobile Drawer */}
+        {!isDesktop && (
+          <ConversationDrawer 
+            isOpen={isSidebarOpen} 
+            onClose={() => setIsSidebarOpen(false)} 
+          />
+        )}
+        
+        {/* Chat container */}
+        <div className={`flex flex-1 items-center justify-center p-4 transition-all duration-200
+          ${isDesktop ? "ml-[280px] lg:ml-[280px] md:ml-[240px]" : "ml-0"}`}
+        >
+          <div className="flex-1 glass max-w-3xl mx-auto rounded-lg overflow-hidden border border-white/10 flex flex-col h-full">
             {/* Messages area */}
             <div 
               ref={chatContainerRef} 
@@ -264,7 +251,7 @@ export default function Chat() {
             {/* Input area */}
             <div className="border-t border-white/10 p-4">
               <div className="flex items-start gap-2">
-                {/* Mobile avatar */}
+                {/* Avatar only visible on smaller screens */}
                 <div className="block md:hidden">
                   <Avatar mood={avatarMood} size="sm" />
                 </div>
