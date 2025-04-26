@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -75,7 +74,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           {isLoggedIn ? (
             <div className="w-8 h-8 rounded-full bg-primary/20 overflow-hidden">
               <img 
-                src={user?.avatarUrl || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} 
+                src={user?.user_metadata?.avatar_url || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} 
                 alt="Perfil do usuário" 
                 className="w-full h-full object-cover"
               />
@@ -92,7 +91,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           {isLoggedIn ? (
             <div className="w-8 h-8 rounded-full bg-primary/20 overflow-hidden">
               <img 
-                src={user?.avatarUrl || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} 
+                src={user?.user_metadata?.avatar_url || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} 
                 alt="Perfil do usuário" 
                 className="w-full h-full object-cover"
               />
